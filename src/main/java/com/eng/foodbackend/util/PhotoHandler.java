@@ -20,7 +20,7 @@ public class PhotoHandler {
 
 	private static final Logger logger = Logger.getLogger(PhotoHandler.class.getName());
 
-	static public List<String> saveFiles(MultipartFile[] photos) {
+	static public List<String> saveFiles(MultipartFile[] photos) throws IOException {
 		List<String> imagePaths = new ArrayList<>();
 		Path directoryPath = Path.of(photosPath);
 		createDirectoryIfNotExist(directoryPath);
@@ -38,6 +38,7 @@ public class PhotoHandler {
 				logger.info("Successfully saved file: " + fileUrl);
 			} catch (IOException e) {
 				logger.severe("Failed to save file " + photoName + ": " + e.getMessage());
+				throw e;
 			}
 		}
 		return imagePaths;

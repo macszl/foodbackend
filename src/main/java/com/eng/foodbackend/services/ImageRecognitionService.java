@@ -52,16 +52,19 @@ public class ImageRecognitionService {
 				validateFile(photo);
 				MultipartFile[] singlePhotoArray = new MultipartFile[]{photo};
 				fileNames.addAll(PhotoHandler.saveFiles(singlePhotoArray));
+				logger.info("Files saved successfully");
 			} catch (Exception e) {
 				logger.severe("File validation failed: " + e.getMessage());
+				logger.info("Failed to save files successfully");
+				throw new IOException(e);
 			}
 		}
 
-		logger.info("Files saved successfully");
+
 		return fileNames;
 	}
 
-	private void validateFile(MultipartFile photo) {
+	private void validateFile(MultipartFile photo) throws IllegalArgumentException {
 		if (photo.getSize() > MAX_FILE_SIZE) {
 			throw new IllegalArgumentException("File size too large: " + photo.getOriginalFilename());
 		}
