@@ -1,6 +1,8 @@
 package com.eng.foodbackend.util;
 
+
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -13,21 +15,26 @@ import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
 
+@Component
 public class PhotoHandler {
 
-	@Value("${photos.path}")
-	private static String photosPath;
+	private static String photosPath = "assets/";
 
 	private static final Logger logger = Logger.getLogger(PhotoHandler.class.getName());
 
-	static public List<String> saveFiles(MultipartFile[] photos) throws IOException {
+	public static List<String> saveFiles(MultipartFile[] photos) throws IOException {
+		if (photos == null || photos.length == 0) {
+			logWarning("saveImageFile: No files provided for saving");
+			throw new IllegalArgumentException("No files provided");
+		}
+
 		List<String> imagePaths = new ArrayList<>();
 		Path directoryPath = Path.of(photosPath);
 		createDirectoryIfNotExist(directoryPath);
 
 		for (MultipartFile photo : photos) {
 			if (photo.isEmpty()) {
-				logger.warning("Received an empty file, skipping it.");
+				logWarning("saveFiles: Received an empty file, skipping it.");
 				continue;
 			}
 
@@ -35,9 +42,9 @@ public class PhotoHandler {
 			try {
 				String fileUrl = saveFile(photo, photoName, directoryPath);
 				imagePaths.add(fileUrl);
-				logger.info("Successfully saved file: " + fileUrl);
+				logInfo("saveFiles: Successfully saved file: " + fileUrl);
 			} catch (IOException e) {
-				logger.severe("Failed to save file " + photoName + ": " + e.getMessage());
+				logSevere("saveFiles: Failed to save file " + photoName + ": " + e.getMessage());
 				throw e;
 			}
 		}
@@ -46,7 +53,7 @@ public class PhotoHandler {
 
 	private static String constructUniqueFilename(String originalFilename) {
 		String uniqueFilename = UUID.randomUUID().toString() + "_" + originalFilename;
-		logger.info("Generated unique filename: " + uniqueFilename);
+		logInfo("constructUniqueFilename: Generated unique filename: " + uniqueFilename);
 		return uniqueFilename;
 	}
 
@@ -54,10 +61,10 @@ public class PhotoHandler {
 		try {
 			if (!Files.exists(directoryPath)) {
 				Files.createDirectories(directoryPath);
-				logger.info("Created directory for photos at: " + directoryPath);
+				logInfo("createDirectoryIfNotExist: Created directory for photos at: " + directoryPath);
 			}
 		} catch (IOException e) {
-			logger.severe("Could not create the directory at " + directoryPath + ": " + e.getMessage());
+			logSevere("createDirectoryIfNotExist: Could not create the directory at " + directoryPath + ": " + e.getMessage());
 			throw new RuntimeException("Could not create the directory for photos.", e);
 		}
 	}
@@ -70,7 +77,19 @@ public class PhotoHandler {
 													.path(photosPath)
 													.path(filename)
 													.toUriString();
-		logger.info("File stored at: " + fileUrl);
+		logInfo("saveFile: File stored at: " + fileUrl);
 		return fileUrl;
+	}
+
+	private static void logInfo(String message) {
+		logger.info("PhotoHandler." + message);
+	}
+
+	private static void logWarning(String message) {
+		logger.warning("PhotoHandler." + message);
+	}
+
+	private static void logSevere(String message) {
+		logger.severe("PhotoHandler." + message);
 	}
 }
