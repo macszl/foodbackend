@@ -18,6 +18,11 @@ public class ImageRecognitionService {
 
 	public ClassificationResponse classifyImage(MultipartFile[] photos) {
 		logger.info("Starting image classification process");
+		if (photos == null || photos.length == 0) {
+			logger.severe("No files provided for classification");
+			return new ClassificationResponse();
+		}
+
 		try {
 			logger.info("Saving files");
 			List<String> savedFiles = saveImageFile(photos);
@@ -30,7 +35,7 @@ public class ImageRecognitionService {
 			return classificationResponse;
 		} catch (Exception e) {
 			logger.severe("Error during image classification: " + e.getMessage());
-			return new ClassificationResponse(); // Modify as needed for error handling
+			return new ClassificationResponse();
 		}
 	}
 
@@ -49,7 +54,6 @@ public class ImageRecognitionService {
 				fileNames.addAll(PhotoHandler.saveFiles(singlePhotoArray));
 			} catch (Exception e) {
 				logger.severe("File validation failed: " + e.getMessage());
-				// Depending on your application's needs, you might want to handle this differently
 			}
 		}
 
