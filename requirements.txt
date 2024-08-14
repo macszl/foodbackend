@@ -1,0 +1,8 @@
+tensorflow
+Flask
+seaborn
+scipy
+numpy
+matplotlib
+pathlib
+scikit-learn
