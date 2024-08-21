@@ -5,6 +5,7 @@ import com.eng.foodbackend.util.PhotoHandler;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,53 +23,80 @@ public class ImageRecognitionService {
 	private static final long MAX_FILE_SIZE = 5242880; // 5 MB, for example
 	private static final List<String> ALLOWED_FILE_TYPES = List.of("image/jpeg", "image/png");
 
+	public ClassificationResponse classifyImage(MultipartFile[] photos) {
+		log("classifyImage: Starting image classification process");
+		if (photos == null || photos.length == 0) {
+			logSevere("classifyImage: No files provided for classification");
+			return new ClassificationResponse();
+		}
 
-    public ClassificationResponse classifyImage(MultipartFile[] photos) {
-        log("classifyImage: Starting image classification process");
-        if (photos == null || photos.length == 0) {
-            logSevere("classifyImage: No files provided for classification");
-            return new ClassificationResponse();
-        }
+		List<String> savedFiles = null;
+		try {
+			log("classifyImage: Saving files");
+			savedFiles = saveImageFile(photos);
+			log("classifyImage: Saved files");
 
-        try {
-            log("classifyImage: Saving files");
-            List<String> savedFiles = saveImageFile(photos);
-            log("classifyImage: Saved files");
+			String imagePath = savedFiles.get(0);
+			log("classifyImage: Original image path: " + imagePath);
 
-            String imagePath = savedFiles.get(0); // Assuming a single image is provided for classification
-            log("classifyImage: Sending image for classification");
-            String classifiedCategory = sendImageForClassification(imagePath);
+			String fixedImagePath;
+			int assetsIndex = imagePath.indexOf("/assets");
+			if (assetsIndex != -1) {
+				fixedImagePath = imagePath.substring(assetsIndex);
+			} else {
+				logSevere("classifyImage: '/assets' not found in image path.");
+				return new ClassificationResponse();
+			}
 
-            ClassificationResponse classificationResponse = new ClassificationResponse();
-            classificationResponse.setClassifiedCategory(classifiedCategory);
+			log("classifyImage: Fixed image path: " + fixedImagePath);
 
-            log("classifyImage: Image classification completed successfully");
-            return classificationResponse;
-        } catch (Exception e) {
-            logSevere("classifyImage: Error during image classification: " + e.getMessage());
-            return new ClassificationResponse();
-        }
-    }
+			log("classifyImage: Sending image for classification");
+			String classifiedCategory = sendImageForClassification(fixedImagePath);
 
-    private String sendImageForClassification(String imagePath) {
-        try {
-            RestTemplate restTemplate = new RestTemplate();
-            String url = "http://127.0.0.1:5000/predict";
+			ClassificationResponse classificationResponse = new ClassificationResponse();
+			classificationResponse.setClassifiedCategory(classifiedCategory);
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
+			log("classifyImage: Image classification completed successfully");
+			return classificationResponse;
+		} catch (Exception e) {
+			logSevere("classifyImage: Error during image classification: " + e.getMessage());
+			return new ClassificationResponse();
+		} finally {
+			String fixedImagePath;
+			if (savedFiles != null) {
+				for (String filePath : savedFiles) {
+					int assetsIndex = filePath.indexOf("/assets");
+					if (assetsIndex != -1) {
+						fixedImagePath = filePath.substring(assetsIndex);
+						deleteFile(fixedImagePath);
+					} else {
+						logSevere("classifyImage: '/assets' not found in image path during deletion.");
+					}
+				}
+			}
+		}
+	}
 
-            String requestJson = "{\"file_uri\":\"" + imagePath + "\"}";
-            HttpEntity<String> entity = new HttpEntity<>(requestJson, headers);
+	private String sendImageForClassification(String imagePath) {
+		try {
+			RestTemplate restTemplate = new RestTemplate();
+			String url = "http://127.0.0.1:5000/predict";
 
-            ResponseEntity<ClassificationResponse> response = restTemplate.postForEntity(url, entity, ClassificationResponse.class);
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
 
-            return response.getBody().getClassifiedCategory();
-        } catch (Exception e) {
-            logSevere("sendImageForClassification: Error during sending image for classification: " + e.getMessage());
-            throw new RuntimeException(e);
-        }
-    }
+			String requestJson = "{\"file_uri\":\"" + imagePath + "\"}";
+			HttpEntity<String> entity = new HttpEntity<>(requestJson, headers);
+
+			ResponseEntity<ClassificationResponse> response = restTemplate.postForEntity(url, entity, ClassificationResponse.class);
+
+			log(response.getBody().getClassifiedCategory());
+			return response.getBody().getClassifiedCategory();
+		} catch (Exception e) {
+			logSevere("sendImageForClassification: Error during sending image for classification: " + e.getMessage());
+			throw new RuntimeException(e);
+		}
+	}
 
 	public List<String> saveImageFile(MultipartFile[] photos) throws IOException, IllegalArgumentException {
 		log("saveImageFile: Starting saving files");
@@ -84,7 +112,7 @@ public class ImageRecognitionService {
 				validateFile(photo);
 				log("saveImageFile: File validated");
 
-				MultipartFile[] singlePhotoArray = { photo };
+				MultipartFile[] singlePhotoArray = {photo};
 
 				log("saveImageFile: Starting file saving");
 				List<String> stringList = PhotoHandler.saveFiles(singlePhotoArray);
@@ -94,7 +122,6 @@ public class ImageRecognitionService {
 				fileNames.addAll(stringList);
 				log("saveImageFile: Added Files to filenames successfully");
 			} catch (Exception e) {
-
 				log("saveImageFile: Failed to save files successfully");
 				throw new IOException(e);
 			}
@@ -120,6 +147,23 @@ public class ImageRecognitionService {
 
 		if (photo.isEmpty()) {
 			throw new IllegalArgumentException("File is empty: " + photo.getOriginalFilename());
+		}
+	}
+
+	private void deleteFile(String filePath) {
+		try {
+			File file = new File(filePath);
+			if (file.exists()) {
+				if (file.delete()) {
+					log("deleteFile: File deleted successfully: " + filePath);
+				} else {
+					logWarning("deleteFile: Failed to delete file: " + filePath);
+				}
+			} else {
+				logWarning("deleteFile: File does not exist: " + filePath);
+			}
+		} catch (Exception e) {
+			logSevere("deleteFile: Error deleting file: " + e.getMessage());
 		}
 	}
 

@@ -62,7 +62,9 @@ def create_model_resnet(input_shape, n_classes, optimizer, fine_tune=0, weights_
 
 # Load the model when the Flask app starts
 try:
-    resnet_model = create_model_resnet(input_shape, n_classes, optim_resnet, fine_tune=8, weights_path='tl_model_resnet.weights.best.hdf5')
+    SHARED_FOLDER = Path(__file__).parent
+    WEIGHT_PATH = SHARED_FOLDER / "food-101-resnet" / "tl_model_resnet.weights.best.hdf5"
+    resnet_model = create_model_resnet(input_shape, n_classes, optim_resnet, fine_tune=8, weights_path=WEIGHT_PATH)
     class_indices_resnet = {i: class_name for i, class_name in enumerate(class_subset)}
 except Exception as e:
     print(f"Error loading model: {e}")
@@ -109,7 +111,7 @@ def predict():
        
         img_array = preprocess_single_image(safe_path, target_size)
         predicted_class = classify_single_image(resnet_model, img_array, class_indices_resnet)
-        return jsonify({"predicted_class": predicted_class})
+        return jsonify({"classifiedCategory": predicted_class})
     
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 404
